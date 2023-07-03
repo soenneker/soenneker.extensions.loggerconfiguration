@@ -13,8 +13,8 @@ public class LoggerConfigExtensionTests : UnitTest
     }
 
     [Theory]
-    [InlineData(nameof(DeployEnvironment.Local), @"logs\log.log")]
-    [InlineData(nameof(DeployEnvironment.Test), @"logs\log.log")]
+    [InlineData(nameof(DeployEnvironment.Local), Path("logs", "log.log"))]
+    [InlineData(nameof(DeployEnvironment.Test), Path("logs", "log.log"))]
     [InlineData(nameof(DeployEnvironment.Development), @"D:\home\LogFiles\log.log")]
     [InlineData(nameof(DeployEnvironment.Staging), @"D:\home\LogFiles\log.log")]
     [InlineData(nameof(DeployEnvironment.Production), @"D:\home\LogFiles\log.log")]
