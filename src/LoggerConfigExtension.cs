@@ -103,10 +103,10 @@ public static class LoggerConfigExtension
                 path = @"D:\home\LogFiles\log.log";
                 break;
             case nameof(DeployEnvironment.Test):
-                path = @"logs\log.log";
+                path = Path("logs", "log.log");
                 break;
             default:
-                path = @"logs\log.log";
+                path = Path("logs", "log.log");
                 break;
         }
 
