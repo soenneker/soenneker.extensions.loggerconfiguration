@@ -100,13 +100,13 @@ public static class LoggerConfigExtension
             case nameof(DeployEnvironment.Development):
             case nameof(DeployEnvironment.Staging):
             case nameof(DeployEnvironment.Production):
-                path = @"D:\home\LogFiles\log.log";
+                path = Path.Combine("D:", "home", "LogFiles", "log.log");
                 break;
             case nameof(DeployEnvironment.Test):
-                path = @"logs\log.log";
+                path = Path.Combine("logs", "log.log");
                 break;
             default:
-                path = @"logs\log.log";
+                path = Path.Combine("logs", "log.log");
                 break;
         }
 

@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+﻿using System.IO;
+using FluentAssertions;
 using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Tests.Unit;
 using Xunit;
@@ -13,16 +14,16 @@ public class LoggerConfigExtensionTests : UnitTest
     }
 
     [Theory]
-    [InlineData(nameof(DeployEnvironment.Local), @"logs\log.log")]
-    [InlineData(nameof(DeployEnvironment.Test), @"logs\log.log")]
-    [InlineData(nameof(DeployEnvironment.Development), @"D:\home\LogFiles\log.log")]
-    [InlineData(nameof(DeployEnvironment.Staging), @"D:\home\LogFiles\log.log")]
-    [InlineData(nameof(DeployEnvironment.Production), @"D:\home\LogFiles\log.log")]
-    public void GetPathFromEnvironment_should_be_expected(string environment, string expected)
+    [InlineData(nameof(DeployEnvironment.Local), new[] { "logs", "log.log" })]
+    [InlineData(nameof(DeployEnvironment.Test),  new[] { "logs", "log.log" })]
+    [InlineData(nameof(DeployEnvironment.Development), new [] { "D:", "home", "LogFiles", "log.log" })]
+    [InlineData(nameof(DeployEnvironment.Staging), new [] { "D:", "home", "LogFiles", "log.log" })]
+    [InlineData(nameof(DeployEnvironment.Production), new [] { "D:", "home", "LogFiles", "log.log" })]
+    public void GetPathFromEnvironment_should_be_expected(string environment, string[] expected)
     {
         DeployEnvironment? env = DeployEnvironment.FromName(environment);
 
         string result = LoggerConfigExtension.GetPathFromEnvironment(env);
-        result.Should().Be(expected);
+        result.Should().Be(Path.Join(expected));
     }
 }
