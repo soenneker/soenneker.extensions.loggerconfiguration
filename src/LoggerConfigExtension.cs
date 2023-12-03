@@ -1,9 +1,5 @@
-﻿using System;
-using System.IO;
-using Hangfire.Console.Extensions.Serilog;
-using Microsoft.ApplicationInsights.Extensibility;
+﻿using System.IO;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
@@ -111,39 +107,5 @@ public static class LoggerConfigExtension
         }
 
         return path;
-    }
-    
-    /// <summary>
-    /// Adds the Hangfire sink unless the config says that we shouldn't
-    /// </summary>
-    public static void AddHangfire(this Serilog.LoggerConfiguration loggerConfig, IConfigurationRoot configRoot)
-    {
-        var enabled = configRoot.GetValue<bool>("Hangfire:Enabled");
-
-        if (!enabled)
-            return;
-
-        LogEventLevel logEventLevel = LoggerUtil.GetLogEventLevelFromConfigRoot(configRoot);
-
-        loggerConfig.Enrich.WithHangfireContext();
-        loggerConfig.WriteTo.Async(a => a.Hangfire(restrictedToMinimumLevel: logEventLevel));
-    }
-
-    /// <summary>
-    /// Adds the Application Insights sink unless the config says that we shouldn't
-    /// </summary>
-    public static void AddApplicationInsightsLogging(this Serilog.LoggerConfiguration loggerConfiguration,
-        IServiceProvider services, IConfigurationRoot configRoot)
-    {
-        var enabled = configRoot.GetValue<bool>("Azure:AppInsights:Enable");
-
-        if (!enabled)
-            return;
-
-        LogEventLevel logEventLevel = LoggerUtil.GetLogEventLevelFromConfigRoot(configRoot);
-
-        loggerConfiguration.WriteTo.Async(a => a.ApplicationInsights(
-            services.GetRequiredService<TelemetryConfiguration>(),
-            TelemetryConverter.Traces, logEventLevel));
     }
 }
