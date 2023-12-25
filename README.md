@@ -8,5 +8,5 @@
 ## Installation
 
 ```
-Install-Package Soenneker.Extensions.LoggerConfiguration
+dotnet add package Soenneker.Extensions.LoggerConfiguration
 ```
