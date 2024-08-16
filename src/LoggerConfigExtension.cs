@@ -41,7 +41,7 @@ public static class LoggerConfigExtension
             Directory.CreateDirectory(directoryName!);
         }
 
-        loggerConfig.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day, restrictedToMinimumLevel: logLevel), 500);
+        loggerConfig.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day, restrictedToMinimumLevel: logLevel, rollOnFileSizeLimit: true), 500);
 
         Log.Logger = loggerConfig.CreateBootstrapLogger();
 
@@ -82,7 +82,7 @@ public static class LoggerConfigExtension
 
         string logPath = GetPathFromEnvironment(deployEnvironment);
 
-        loggerConfig.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day, restrictedToMinimumLevel: logLevel, levelSwitch: LoggerUtil.GetSwitch()), 500);
+        loggerConfig.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day, restrictedToMinimumLevel: logLevel, levelSwitch: LoggerUtil.GetSwitch(), rollOnFileSizeLimit: true), 500);
 
         return loggerConfig;
     }
