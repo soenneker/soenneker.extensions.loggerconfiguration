@@ -40,6 +40,6 @@
         <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
         <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="2.1.136" />
-        <PackageReference Include="Soenneker.Utils.Logger" Version="2.1.177" />
+        <PackageReference Include="Soenneker.Utils.Logger" Version="2.1.178" />
     </ItemGroup>
 </Project>
