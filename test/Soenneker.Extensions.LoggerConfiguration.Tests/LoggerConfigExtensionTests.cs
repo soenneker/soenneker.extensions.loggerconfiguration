@@ -1,9 +1,9 @@
-﻿using System.IO;
+using System.IO;
 using FluentAssertions;
 using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Tests.Unit;
 using Xunit;
-using Xunit.Abstractions;
+
 
 namespace Soenneker.Extensions.LoggerConfiguration.Tests;
 
