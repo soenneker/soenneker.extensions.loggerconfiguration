@@ -1,18 +1,13 @@
 using System.IO;
 using FluentAssertions;
 using Soenneker.Enums.DeployEnvironment;
-using Soenneker.Tests.Unit;
 using Xunit;
 
 
 namespace Soenneker.Extensions.LoggerConfiguration.Tests;
 
-public class LoggerConfigExtensionTests : UnitTest
+public class LoggerConfigurationExtensionTests
 {
-    public LoggerConfigExtensionTests(ITestOutputHelper output) : base(output)
-    {
-    }
-
     [Theory]
     [InlineData(nameof(DeployEnvironment.Local), new[] { "logs", "log.log" })]
     [InlineData(nameof(DeployEnvironment.Test),  new[] { "logs", "log.log" })]
@@ -23,7 +18,7 @@ public class LoggerConfigExtensionTests : UnitTest
     {
         DeployEnvironment? env = DeployEnvironment.FromName(environment);
 
-        string result = LoggerConfigExtension.GetPathFromEnvironment(env);
+        string result = LoggerConfigurationExtension.GetPathFromEnvironment(env);
         result.Should().Be(Path.Join(expected));
     }
 }

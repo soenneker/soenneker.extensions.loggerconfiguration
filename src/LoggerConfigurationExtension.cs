@@ -11,7 +11,7 @@ namespace Soenneker.Extensions.LoggerConfiguration;
 /// <summary>
 /// A set of useful Serilog LoggerConfiguration extension methods
 /// </summary>
-public static class LoggerConfigExtension
+public static class LoggerConfigurationExtension
 {
     /// <summary>
     /// Called before Configuration is built.
@@ -41,7 +41,8 @@ public static class LoggerConfigExtension
             Directory.CreateDirectory(directoryName!);
         }
 
-        loggerConfig.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day, restrictedToMinimumLevel: logLevel, rollOnFileSizeLimit: true), 500);
+        loggerConfig.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day, restrictedToMinimumLevel: logLevel, rollOnFileSizeLimit: true),
+            500);
 
         Log.Logger = loggerConfig.CreateBootstrapLogger();
 
@@ -52,37 +53,29 @@ public static class LoggerConfigExtension
     /// Should be called within UseSerilog().
     /// Reconfigures global static Log.Logger
     /// </summary>
-    public static Serilog.LoggerConfiguration ConfigureLogger(this Serilog.LoggerConfiguration loggerConfig, IConfigurationRoot configRoot)
+    public static Serilog.LoggerConfiguration ConfigureLogger(this Serilog.LoggerConfiguration loggerConfig, IConfiguration configuration)
     {
         LoggerUtil.Init();
 
-        LogEventLevel logLevel = LoggerUtil.SetLogLevelFromConfigRoot(configRoot);
+        LogEventLevel logLevel = LoggerUtil.SetLogLevelFromConfig(configuration);
 
         loggerConfig.MinimumLevel.ControlledBy(LoggerUtil.GetSwitch());
         loggerConfig.MinimumLevel.Is(logLevel);
 
         loggerConfig.Enrich.FromLogContext();
 
-        var addConsole = configRoot.GetValue<bool>("Log:Console");
+        var addConsole = configuration.GetValue<bool>("Log:Console");
 
         if (addConsole)
             loggerConfig.WriteTo.Async(a => a.Console(theme: AnsiConsoleTheme.Code, restrictedToMinimumLevel: logLevel, levelSwitch: LoggerUtil.GetSwitch()));
 
-        DeployEnvironment? deployEnvironment = DeployEnvironment.FromName(configRoot.GetValue<string>("Environment"));
-
-        //var levels = new Levels(configRoot);
-
-        //if (levels.Dictionary != null)
-        //{
-        //    foreach (KeyValuePair<string, LogEventLevel> level in levels.Dictionary)
-        //    {
-        //        loggerConfig.MinimumLevel.Override(level.Key, level.Value);
-        //    }
-        //}
+        DeployEnvironment? deployEnvironment = DeployEnvironment.FromName(configuration.GetValue<string>("Environment"));
 
         string logPath = GetPathFromEnvironment(deployEnvironment);
 
-        loggerConfig.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day, restrictedToMinimumLevel: logLevel, levelSwitch: LoggerUtil.GetSwitch(), rollOnFileSizeLimit: true), 500);
+        loggerConfig.WriteTo.Async(
+            a => a.File(logPath, rollingInterval: RollingInterval.Day, restrictedToMinimumLevel: logLevel, levelSwitch: LoggerUtil.GetSwitch(),
+                rollOnFileSizeLimit: true), 500);
 
         return loggerConfig;
     }
