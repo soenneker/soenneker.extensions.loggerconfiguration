@@ -1,5 +1,5 @@
 using System.IO;
-using FluentAssertions;
+using AwesomeAssertions;
 using Soenneker.Enums.DeployEnvironment;
 using Xunit;
 
