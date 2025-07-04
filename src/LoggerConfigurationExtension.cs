@@ -6,7 +6,7 @@ using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Utils.Logger;
 using System.IO;
 using Serilog.Core;
-using Soenneker.Utils.Runtime;
+using Soenneker.Utils.LogPath;
 
 namespace Soenneker.Extensions.LoggerConfiguration;
 
@@ -29,7 +29,7 @@ public static class LoggerConfigurationExtension
 
         Serilog.LoggerConfiguration loggerConfig = new Serilog.LoggerConfiguration().MinimumLevel.Is(logLevel);
 
-        string logPath = GetPathFromEnvironment(deployEnvironment);
+        string logPath = LogPathUtil.Get(_fileName).GetAwaiter().GetResult();
 
         EnsureDirectoryExists(logPath);
         DeleteIfExists(logPath);
@@ -83,9 +83,7 @@ public static class LoggerConfigurationExtension
                 sinks.Console(theme: _theme, levelSwitch: levelSwitch, restrictedToMinimumLevel: logLevel);
             }
 
-            // File sink
-            DeployEnvironment? env = DeployEnvironment.FromName(configuration.GetValue<string>("Environment"));
-            string logPath = GetPathFromEnvironment(env);
+            string logPath = LogPathUtil.Get(_fileName).GetAwaiter().GetResult();
 
             EnsureDirectoryExists(logPath);
 
@@ -94,31 +92,4 @@ public static class LoggerConfigurationExtension
 
         return loggerConfig;
     }
-
-    public static string GetPathFromEnvironment(DeployEnvironment env)
-{
-    // Test env always uses local logs folder
-    if (env == DeployEnvironment.Test)
-        return Path.Combine("logs", _fileName);
-
-    string fallback = Path.Combine("logs", _fileName);
-
-    // Preferred root path
-    string root = RuntimeUtil.IsWindows() ? Path.Combine("D:", "home") : "/home";
-    string targetDir = Path.Combine(root, "LogFiles");
-    string fullPath = Path.Combine(targetDir, _fileName);
-
-    try
-    {
-        // Try to create the target dir if it doesn't exist, as a permission test
-        Directory.CreateDirectory(targetDir);
-        return fullPath;
-    }
-    catch
-    {
-        // If creation fails, fallback to local logs
-        return fallback;
-    }
-}
-
 }
