@@ -1,10 +1,11 @@
-﻿using System.IO;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Utils.Logger;
+using System.IO;
+using Soenneker.Utils.Runtime;
 
 namespace Soenneker.Extensions.LoggerConfiguration;
 
@@ -80,25 +81,18 @@ public static class LoggerConfigurationExtension
         return loggerConfig;
     }
 
-    public static string GetPathFromEnvironment(DeployEnvironment deployEnvironment)
+    public static string GetPathFromEnvironment(DeployEnvironment env)
     {
-        string path;
+        const string fileName = "log.log";
 
-        switch (deployEnvironment.Name)
-        {
-            case nameof(DeployEnvironment.Development):
-            case nameof(DeployEnvironment.Staging):
-            case nameof(DeployEnvironment.Production):
-                path = Path.Combine("D:", "home", "LogFiles", "log.log");
-                break;
-            case nameof(DeployEnvironment.Test):
-                path = Path.Combine("logs", "log.log");
-                break;
-            default:
-                path = Path.Combine("logs", "log.log");
-                break;
-        }
+        // Use the persistent /home mount on Linux, D:\home on Windows
+        string root = RuntimeUtil.IsWindows()
+            ? Path.Combine("D:", "home")
+            : "/home";
 
-        return path;
+        if (env == DeployEnvironment.Test)
+            return Path.Combine("logs", fileName);      // runs locally in CI, etc.
+
+        return Path.Combine(root, "LogFiles", fileName);
     }
 }
