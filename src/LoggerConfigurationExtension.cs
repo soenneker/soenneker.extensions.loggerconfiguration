@@ -5,6 +5,7 @@ using Serilog.Sinks.SystemConsole.Themes;
 using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Utils.Logger;
 using System.IO;
+using Serilog.Core;
 using Soenneker.Utils.Runtime;
 
 namespace Soenneker.Extensions.LoggerConfiguration;
@@ -14,85 +15,94 @@ namespace Soenneker.Extensions.LoggerConfiguration;
 /// </summary>
 public static class LoggerConfigurationExtension
 {
+    private const int _buffer = 500;
+    private static readonly AnsiConsoleTheme _theme = AnsiConsoleTheme.Code;
+    private const string _fileName = "log.log";
+
     /// <summary>
     /// Called before Configuration is built.
     /// Verbose is used during startup
     /// </summary>
     public static Serilog.LoggerConfiguration BuildBootstrapLoggerAndSetGlobally(DeployEnvironment deployEnvironment)
     {
-        var loggerConfig = new Serilog.LoggerConfiguration();
-
         const LogEventLevel logLevel = LogEventLevel.Verbose;
 
-        loggerConfig.MinimumLevel.Is(logLevel);
-
-        loggerConfig.WriteTo.Async(a => a.Console(theme: AnsiConsoleTheme.Code, restrictedToMinimumLevel: logLevel));
+        Serilog.LoggerConfiguration loggerConfig = new Serilog.LoggerConfiguration().MinimumLevel.Is(logLevel);
 
         string logPath = GetPathFromEnvironment(deployEnvironment);
 
-        string? directoryName = Path.GetDirectoryName(logPath);
+        EnsureDirectoryExists(logPath);
+        DeleteIfExists(logPath);
 
-        if (Directory.Exists(logPath))
+        loggerConfig.WriteTo.Async(w =>
         {
-            if (File.Exists(logPath))
-                File.Delete(logPath);
-        }
-        else
-        {
-            Directory.CreateDirectory(directoryName!);
-        }
-
-        loggerConfig.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day, restrictedToMinimumLevel: logLevel, rollOnFileSizeLimit: true),
-            500);
+            w.Console(theme: _theme, restrictedToMinimumLevel: logLevel);
+            w.File(logPath, restrictedToMinimumLevel: logLevel, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
+        }, _buffer);
 
         Log.Logger = loggerConfig.CreateBootstrapLogger();
-
         return loggerConfig;
     }
 
+    private static void EnsureDirectoryExists(string filePath)
+    {
+        // Path.GetDirectoryName never returns null for a rooted path
+        string dir = Path.GetDirectoryName(filePath)!;
+        Directory.CreateDirectory(dir); // idempotent; no Exists check needed
+    }
+
+    private static void DeleteIfExists(string filePath)
+    {
+        if (File.Exists(filePath))
+            File.Delete(filePath);
+    }
+
     /// <summary>
-    /// Should be called within UseSerilog().
-    /// Reconfigures global static Log.Logger
+    /// Should be called from <c>UseSerilog()</c>.  
+    /// Re-configures the global static <see cref="Log.Logger"/>.
     /// </summary>
     public static Serilog.LoggerConfiguration ConfigureLogger(this Serilog.LoggerConfiguration loggerConfig, IConfiguration configuration)
     {
+        // Initialise helpers
         LoggerUtil.Init();
 
+        // Determine runtime log level & switch
         LogEventLevel logLevel = LoggerUtil.SetLogLevelFromConfig(configuration);
+        LoggingLevelSwitch levelSwitch = LoggerUtil.GetSwitch();
+        levelSwitch.MinimumLevel = logLevel;
 
-        loggerConfig.MinimumLevel.ControlledBy(LoggerUtil.GetSwitch());
-        loggerConfig.MinimumLevel.Is(logLevel);
+        loggerConfig.MinimumLevel.ControlledBy(levelSwitch) // single source of truth
+                    .Enrich.FromLogContext();
 
-        loggerConfig.Enrich.FromLogContext();
+        // Build sink pipeline once, wrapped in a single async queue
+        loggerConfig.WriteTo.Async(sinks =>
+        {
+            // Console sink (optional)
+            if (configuration.GetValue<bool>("Log:Console"))
+            {
+                sinks.Console(theme: _theme, levelSwitch: levelSwitch, restrictedToMinimumLevel: logLevel);
+            }
 
-        var addConsole = configuration.GetValue<bool>("Log:Console");
+            // File sink
+            DeployEnvironment? env = DeployEnvironment.FromName(configuration.GetValue<string>("Environment"));
+            string logPath = GetPathFromEnvironment(env);
 
-        if (addConsole)
-            loggerConfig.WriteTo.Async(a => a.Console(theme: AnsiConsoleTheme.Code, restrictedToMinimumLevel: logLevel, levelSwitch: LoggerUtil.GetSwitch()));
+            EnsureDirectoryExists(logPath);
 
-        DeployEnvironment? deployEnvironment = DeployEnvironment.FromName(configuration.GetValue<string>("Environment"));
-
-        string logPath = GetPathFromEnvironment(deployEnvironment);
-
-        loggerConfig.WriteTo.Async(
-            a => a.File(logPath, rollingInterval: RollingInterval.Day, restrictedToMinimumLevel: logLevel, levelSwitch: LoggerUtil.GetSwitch(),
-                rollOnFileSizeLimit: true), 500);
+            sinks.File(logPath, levelSwitch: levelSwitch, restrictedToMinimumLevel: logLevel, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
+        }, bufferSize: _buffer);
 
         return loggerConfig;
     }
 
     public static string GetPathFromEnvironment(DeployEnvironment env)
     {
-        const string fileName = "log.log";
-
         // Use the persistent /home mount on Linux, D:\home on Windows
-        string root = RuntimeUtil.IsWindows()
-            ? Path.Combine("D:", "home")
-            : "/home";
+        string root = RuntimeUtil.IsWindows() ? Path.Combine("D:", "home") : "/home";
 
         if (env == DeployEnvironment.Test)
-            return Path.Combine("logs", fileName);      // runs locally in CI, etc.
+            return Path.Combine("logs", _fileName); // runs locally in CI, etc.
 
-        return Path.Combine(root, "LogFiles", fileName);
+        return Path.Combine(root, "LogFiles", _fileName);
     }
 }
