@@ -96,20 +96,29 @@ public static class LoggerConfigurationExtension
     }
 
     public static string GetPathFromEnvironment(DeployEnvironment env)
+{
+    // Test env always uses local logs folder
+    if (env == DeployEnvironment.Test)
+        return Path.Combine("logs", _fileName);
+
+    string fallback = Path.Combine("logs", _fileName);
+
+    // Preferred root path
+    string root = RuntimeUtil.IsWindows() ? Path.Combine("D:", "home") : "/home";
+    string targetDir = Path.Combine(root, "LogFiles");
+    string fullPath = Path.Combine(targetDir, _fileName);
+
+    try
     {
-        if (env == DeployEnvironment.Test)
-            return Path.Combine("logs", _fileName); // for CI or test runs
-
-        // Default root based on platform
-        string root = RuntimeUtil.IsWindows() ? Path.Combine("D:", "home") : "/home";
-        string fullPath = Path.Combine(root, "LogFiles", _fileName);
-
-        // If the root directory doesn't exist (e.g., local dev), fallback
-        if (!Directory.Exists(Path.GetDirectoryName(fullPath)))
-        {
-            return Path.Combine("logs", _fileName); // fallback to local relative logs dir
-        }
-
+        // Try to create the target dir if it doesn't exist, as a permission test
+        Directory.CreateDirectory(targetDir);
         return fullPath;
     }
+    catch
+    {
+        // If creation fails, fallback to local logs
+        return fallback;
+    }
+}
+
 }
