@@ -97,12 +97,19 @@ public static class LoggerConfigurationExtension
 
     public static string GetPathFromEnvironment(DeployEnvironment env)
     {
-        // Use the persistent /home mount on Linux, D:\home on Windows
-        string root = RuntimeUtil.IsWindows() ? Path.Combine("D:", "home") : "/home";
-
         if (env == DeployEnvironment.Test)
-            return Path.Combine("logs", _fileName); // runs locally in CI, etc.
+            return Path.Combine("logs", _fileName); // for CI or test runs
 
-        return Path.Combine(root, "LogFiles", _fileName);
+        // Default root based on platform
+        string root = RuntimeUtil.IsWindows() ? Path.Combine("D:", "home") : "/home";
+        string fullPath = Path.Combine(root, "LogFiles", _fileName);
+
+        // If the root directory doesn't exist (e.g., local dev), fallback
+        if (!Directory.Exists(Path.GetDirectoryName(fullPath)))
+        {
+            return Path.Combine("logs", _fileName); // fallback to local relative logs dir
+        }
+
+        return fullPath;
     }
 }
