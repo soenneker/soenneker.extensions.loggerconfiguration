@@ -38,7 +38,7 @@
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
         <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
         <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
-        <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="3.0.177" />
+        <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="3.0.178" />
         <PackageReference Include="Soenneker.Utils.Logger" Version="3.0.364" />
         <PackageReference Include="Soenneker.Utils.LogPath" Version="3.0.9" />
     </ItemGroup>
