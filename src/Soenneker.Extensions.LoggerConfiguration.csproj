@@ -40,6 +40,6 @@
         <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="3.0.178" />
         <PackageReference Include="Soenneker.Utils.Logger" Version="3.0.365" />
-        <PackageReference Include="Soenneker.Utils.LogPath" Version="3.0.9" />
+        <PackageReference Include="Soenneker.Utils.LogPath" Version="3.0.10" />
     </ItemGroup>
 </Project>
