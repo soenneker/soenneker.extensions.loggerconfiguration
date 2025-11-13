@@ -1,12 +1,13 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Serilog;
+using Serilog.Core;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Utils.Logger;
-using System.IO;
-using Serilog.Core;
 using Soenneker.Utils.LogPath;
+using System;
+using System.IO;
 
 namespace Soenneker.Extensions.LoggerConfiguration;
 
@@ -30,6 +31,8 @@ public static class LoggerConfigurationExtension
         Serilog.LoggerConfiguration loggerConfig = new Serilog.LoggerConfiguration().MinimumLevel.Is(logLevel);
 
         string logPath = LogPathUtil.Get(_fileName).GetAwaiter().GetResult();
+
+        Console.WriteLine($"[BuildBootstrapLoggerAndSetGlobally] Using log path: {logPath}");
 
         EnsureDirectoryExists(logPath);
         DeleteIfExists(logPath);
@@ -84,6 +87,8 @@ public static class LoggerConfigurationExtension
             }
 
             string logPath = LogPathUtil.Get(_fileName).GetAwaiter().GetResult();
+
+            Console.WriteLine($"[ConfigureLogger] Using log path: {logPath}");
 
             EnsureDirectoryExists(logPath);
 
