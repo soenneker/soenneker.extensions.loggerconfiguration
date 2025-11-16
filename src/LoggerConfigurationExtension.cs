@@ -16,7 +16,7 @@ namespace Soenneker.Extensions.LoggerConfiguration;
 /// </summary>
 public static class LoggerConfigurationExtension
 {
-    private const int _buffer = 500;
+    private const int _buffer = 10000;
     private static readonly AnsiConsoleTheme _theme = AnsiConsoleTheme.Code;
     private const string _fileName = "log.log";
 
@@ -28,7 +28,8 @@ public static class LoggerConfigurationExtension
     {
         const LogEventLevel logLevel = LogEventLevel.Verbose;
 
-        Serilog.LoggerConfiguration loggerConfig = new Serilog.LoggerConfiguration().MinimumLevel.Is(logLevel);
+        Serilog.LoggerConfiguration loggerConfig = new Serilog.LoggerConfiguration()
+                                                   .MinimumLevel.Is(logLevel);
 
         string logPath = LogPathUtil.Get(_fileName).GetAwaiter().GetResult();
 
@@ -37,11 +38,16 @@ public static class LoggerConfigurationExtension
         EnsureDirectoryExists(logPath);
         DeleteIfExists(logPath);
 
+        // Async only for console (lightweight); file sink is direct so it can't be dropped
         loggerConfig.WriteTo.Async(w =>
         {
             w.Console(theme: _theme);
-            w.File(logPath, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
         }, _buffer);
+
+        loggerConfig.WriteTo.File(
+            logPath,
+            rollingInterval: RollingInterval.Day,
+            rollOnFileSizeLimit: true);
 
         Log.Logger = loggerConfig.CreateBootstrapLogger();
         return loggerConfig;
@@ -74,26 +80,32 @@ public static class LoggerConfigurationExtension
         LoggingLevelSwitch levelSwitch = LoggerUtil.GetSwitch();
         levelSwitch.MinimumLevel = logLevel;
 
-        loggerConfig.MinimumLevel.ControlledBy(levelSwitch) // single source of truth
-                    .Enrich.FromLogContext();
+        loggerConfig
+            .MinimumLevel.ControlledBy(levelSwitch) // single source of truth
+            .Enrich.FromLogContext();
 
-        // Build sink pipeline once, wrapped in a single async queue
-        loggerConfig.WriteTo.Async(sinks =>
+        // Resolve log path once (outside async)
+        string logPath = LogPathUtil.Get(_fileName).GetAwaiter().GetResult();
+
+        Console.WriteLine($"[ConfigureLogger] Using log path: {logPath}");
+
+        EnsureDirectoryExists(logPath);
+
+        if (configuration.GetValue<bool>("Log:Console"))
         {
-            // Console sink (optional)
-            if (configuration.GetValue<bool>("Log:Console"))
+            // Async only for console to avoid blocking; no file here to prevent queue overflow dropping logs
+            loggerConfig.WriteTo.Async(sinks =>
             {
                 sinks.Console(theme: _theme, levelSwitch: levelSwitch);
-            }
+            }, bufferSize: _buffer);
+        }
 
-            string logPath = LogPathUtil.Get(_fileName).GetAwaiter().GetResult();
-
-            Console.WriteLine($"[ConfigureLogger] Using log path: {logPath}");
-
-            EnsureDirectoryExists(logPath);
-
-            sinks.File(logPath, levelSwitch: levelSwitch, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
-        }, bufferSize: _buffer);
+        // File sink is direct (non-async) so events can't be dropped by the async buffer
+        loggerConfig.WriteTo.File(
+            logPath,
+            levelSwitch: levelSwitch,
+            rollingInterval: RollingInterval.Day,
+            rollOnFileSizeLimit: true);
 
         return loggerConfig;
     }
