@@ -39,8 +39,8 @@ public static class LoggerConfigurationExtension
 
         loggerConfig.WriteTo.Async(w =>
         {
-            w.Console(theme: _theme, restrictedToMinimumLevel: logLevel);
-            w.File(logPath, restrictedToMinimumLevel: logLevel, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
+            w.Console(theme: _theme);
+            w.File(logPath, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
         }, _buffer);
 
         Log.Logger = loggerConfig.CreateBootstrapLogger();
@@ -83,7 +83,7 @@ public static class LoggerConfigurationExtension
             // Console sink (optional)
             if (configuration.GetValue<bool>("Log:Console"))
             {
-                sinks.Console(theme: _theme, levelSwitch: levelSwitch, restrictedToMinimumLevel: logLevel);
+                sinks.Console(theme: _theme, levelSwitch: levelSwitch);
             }
 
             string logPath = LogPathUtil.Get(_fileName).GetAwaiter().GetResult();
@@ -92,7 +92,7 @@ public static class LoggerConfigurationExtension
 
             EnsureDirectoryExists(logPath);
 
-            sinks.File(logPath, levelSwitch: levelSwitch, restrictedToMinimumLevel: logLevel, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
+            sinks.File(logPath, levelSwitch: levelSwitch, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
         }, bufferSize: _buffer);
 
         return loggerConfig;
