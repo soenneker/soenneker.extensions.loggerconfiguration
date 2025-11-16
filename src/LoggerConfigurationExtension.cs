@@ -11,101 +11,94 @@ using System.IO;
 
 namespace Soenneker.Extensions.LoggerConfiguration;
 
-/// <summary>
-/// A set of useful Serilog LoggerConfiguration extension methods
-/// </summary>
 public static class LoggerConfigurationExtension
 {
     private const int _buffer = 10000;
     private static readonly AnsiConsoleTheme _theme = AnsiConsoleTheme.Code;
-    private const string _fileName = "log.log";
 
-    /// <summary>
-    /// Called before Configuration is built.
-    /// Verbose is used during startup
-    /// </summary>
+    // "log-.log" -> creates "log-20251116.log"
+    private const string _fileName = "log-.log";
+
     public static Serilog.LoggerConfiguration BuildBootstrapLoggerAndSetGlobally(DeployEnvironment deployEnvironment)
     {
         const LogEventLevel logLevel = LogEventLevel.Verbose;
 
-        Serilog.LoggerConfiguration loggerConfig = new Serilog.LoggerConfiguration()
-                                                   .MinimumLevel.Is(logLevel);
+        Serilog.LoggerConfiguration loggerConfig = new Serilog.LoggerConfiguration().MinimumLevel.Is(logLevel);
 
-        string logPath = LogPathUtil.Get(_fileName).GetAwaiter().GetResult();
+        string logPath = LogPathUtil.Get(_fileName)
+                                    .GetAwaiter()
+                                    .GetResult();
 
         Console.WriteLine($"[BuildBootstrapLoggerAndSetGlobally] Using log path: {logPath}");
 
         EnsureDirectoryExists(logPath);
-        DeleteIfExists(logPath);
+        TryTestWrite(logPath, "[Bootstrap]");
 
-        // Async only for console (lightweight); file sink is direct so it can't be dropped
+        // 🟢 Console async, file direct (never dropped)
         loggerConfig.WriteTo.Async(w =>
-        {
-            w.Console(theme: _theme);
-        }, _buffer);
-
-        loggerConfig.WriteTo.File(
-            logPath,
-            rollingInterval: RollingInterval.Day,
-            rollOnFileSizeLimit: true);
+                    {
+                        w.Console(theme: _theme);
+                    }, _buffer)
+                    .WriteTo.File(logPath, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
 
         Log.Logger = loggerConfig.CreateBootstrapLogger();
+
+        Log.Warning("[Bootstrap] Logger initialized at {Utc}", DateTime.UtcNow);
+
         return loggerConfig;
     }
 
     private static void EnsureDirectoryExists(string filePath)
     {
-        // Path.GetDirectoryName never returns null for a rooted path
-        string dir = Path.GetDirectoryName(filePath)!;
-        Directory.CreateDirectory(dir); // idempotent; no Exists check needed
+        string? dir = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrWhiteSpace(dir))
+            Directory.CreateDirectory(dir);
+        else
+            Console.WriteLine($"[LoggerConfigurationExtension] WARN: Cannot determine directory for '{filePath}'");
     }
 
-    private static void DeleteIfExists(string filePath)
+    private static void TryTestWrite(string logPath, string prefix)
     {
-        if (File.Exists(filePath))
-            File.Delete(filePath);
+        try
+        {
+            File.AppendAllText(logPath, $"{prefix} test write at {DateTime.UtcNow:o}{Environment.NewLine}");
+            Console.WriteLine($"{prefix} Successfully wrote test line to '{logPath}'");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"{prefix} FAILED to write test line to '{logPath}': {ex}");
+        }
     }
 
-    /// <summary>
-    /// Should be called from <c>UseSerilog()</c>.  
-    /// Re-configures the global static <see cref="Log.Logger"/>.
-    /// </summary>
     public static Serilog.LoggerConfiguration ConfigureLogger(this Serilog.LoggerConfiguration loggerConfig, IConfiguration configuration)
     {
-        // Initialise helpers
         LoggerUtil.Init();
 
-        // Determine runtime log level & switch
         LogEventLevel logLevel = LoggerUtil.SetLogLevelFromConfig(configuration);
         LoggingLevelSwitch levelSwitch = LoggerUtil.GetSwitch();
         levelSwitch.MinimumLevel = logLevel;
 
-        loggerConfig
-            .MinimumLevel.ControlledBy(levelSwitch) // single source of truth
-            .Enrich.FromLogContext();
+        loggerConfig.MinimumLevel.ControlledBy(levelSwitch)
+                    .Enrich.FromLogContext();
 
-        // Resolve log path once (outside async)
-        string logPath = LogPathUtil.Get(_fileName).GetAwaiter().GetResult();
+        string logPath = LogPathUtil.Get(_fileName)
+                                    .GetAwaiter()
+                                    .GetResult();
 
         Console.WriteLine($"[ConfigureLogger] Using log path: {logPath}");
 
         EnsureDirectoryExists(logPath);
+        TryTestWrite(logPath, "[ConfigureLogger]");
 
-        if (configuration.GetValue<bool>("Log:Console"))
+        loggerConfig.WriteTo.Async(sinks =>
         {
-            // Async only for console to avoid blocking; no file here to prevent queue overflow dropping logs
-            loggerConfig.WriteTo.Async(sinks =>
-            {
+            if (configuration.GetValue<bool>("Log:Console"))
                 sinks.Console(theme: _theme, levelSwitch: levelSwitch);
-            }, bufferSize: _buffer);
-        }
+        }, _buffer);
 
-        // File sink is direct (non-async) so events can't be dropped by the async buffer
-        loggerConfig.WriteTo.File(
-            logPath,
-            levelSwitch: levelSwitch,
-            rollingInterval: RollingInterval.Day,
-            rollOnFileSizeLimit: true);
+        loggerConfig.WriteTo.File(logPath, levelSwitch: levelSwitch, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
+
+        Log.Warning("[ConfigureLogger] Logger initialized at {Utc}", DateTime.UtcNow);
 
         return loggerConfig;
     }
