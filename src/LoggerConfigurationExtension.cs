@@ -13,7 +13,6 @@ namespace Soenneker.Extensions.LoggerConfiguration;
 
 public static class LoggerConfigurationExtension
 {
-    private const int _buffer = 10000;
     private static readonly AnsiConsoleTheme _theme = AnsiConsoleTheme.Code;
 
     // "log-.log" -> creates "log-20251116.log"
@@ -32,13 +31,12 @@ public static class LoggerConfigurationExtension
         Console.WriteLine($"[BuildBootstrapLoggerAndSetGlobally] Using log path: {logPath}");
 
         EnsureDirectoryExists(logPath);
-        TryTestWrite(logPath, "[Bootstrap]");
 
         // 🟢 Console async, file direct (never dropped)
         loggerConfig.WriteTo.Async(w =>
                     {
                         w.Console(theme: _theme);
-                    }, _buffer)
+                    })
                     .WriteTo.File(logPath, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
 
         Log.Logger = loggerConfig.CreateBootstrapLogger();
@@ -51,23 +49,11 @@ public static class LoggerConfigurationExtension
     private static void EnsureDirectoryExists(string filePath)
     {
         string? dir = Path.GetDirectoryName(filePath);
+
         if (!string.IsNullOrWhiteSpace(dir))
             Directory.CreateDirectory(dir);
         else
             Console.WriteLine($"[LoggerConfigurationExtension] WARN: Cannot determine directory for '{filePath}'");
-    }
-
-    private static void TryTestWrite(string logPath, string prefix)
-    {
-        try
-        {
-            File.AppendAllText(logPath, $"{prefix} test write at {DateTime.UtcNow:o}{Environment.NewLine}");
-            Console.WriteLine($"{prefix} Successfully wrote test line to '{logPath}'");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"{prefix} FAILED to write test line to '{logPath}': {ex}");
-        }
     }
 
     public static Serilog.LoggerConfiguration ConfigureLogger(this Serilog.LoggerConfiguration loggerConfig, IConfiguration configuration)
@@ -88,13 +74,14 @@ public static class LoggerConfigurationExtension
         Console.WriteLine($"[ConfigureLogger] Using log path: {logPath}");
 
         EnsureDirectoryExists(logPath);
-        TryTestWrite(logPath, "[ConfigureLogger]");
 
-        loggerConfig.WriteTo.Async(sinks =>
+        if (configuration.GetValue<bool>("Log:Console"))
         {
-            if (configuration.GetValue<bool>("Log:Console"))
+            loggerConfig.WriteTo.Async(sinks =>
+            {
                 sinks.Console(theme: _theme, levelSwitch: levelSwitch);
-        }, _buffer);
+            });
+        }
 
         loggerConfig.WriteTo.File(logPath, levelSwitch: levelSwitch, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
 
