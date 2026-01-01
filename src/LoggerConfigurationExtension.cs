@@ -25,6 +25,7 @@ public static class LoggerConfigurationExtension
         Serilog.LoggerConfiguration loggerConfig = new Serilog.LoggerConfiguration().MinimumLevel.Is(logLevel);
 
         string logPath = LogPathUtil.Get(_fileName)
+                                    .ConfigureAwait(false)
                                     .GetAwaiter()
                                     .GetResult();
 
@@ -68,6 +69,7 @@ public static class LoggerConfigurationExtension
                     .Enrich.FromLogContext();
 
         string logPath = LogPathUtil.Get(_fileName)
+                                    .ConfigureAwait(false)
                                     .GetAwaiter()
                                     .GetResult();
 
