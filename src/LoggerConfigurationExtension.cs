@@ -62,7 +62,6 @@ public static class LoggerConfigurationExtension
     /// </summary>
     public static Serilog.LoggerConfiguration BuildBootstrapLoggerAndSetGloballySync(DeployEnvironment deployEnvironment) =>
         BuildBootstrapLoggerAndSetGlobally(deployEnvironment)
-            .AsTask()
             .GetAwaiter()
             .GetResult();
 
@@ -102,7 +101,6 @@ public static class LoggerConfigurationExtension
     /// </summary>
     public static Serilog.LoggerConfiguration ConfigureLoggerSync(this Serilog.LoggerConfiguration loggerConfig, IConfiguration configuration) => loggerConfig
         .ConfigureLogger(configuration)
-        .AsTask()
         .GetAwaiter()
         .GetResult();
 
