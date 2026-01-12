@@ -8,16 +8,21 @@ using Soenneker.Utils.Logger;
 using Soenneker.Utils.LogPath;
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using Soenneker.Extensions.ValueTask;
 
 namespace Soenneker.Extensions.LoggerConfiguration;
 
 /// <summary>
-/// Provides extension methods for configuring and initializing Serilog logger instances with application-specific
-/// settings.
+/// Provides extension methods for configuring and initializing Serilog loggers with application-specific settings,
+/// including asynchronous and synchronous bootstrap and configuration routines.
 /// </summary>
-/// <remarks>This static class contains methods to set up Serilog logging for applications, including bootstrap
-/// logger creation and configuration based on environment and application configuration. The methods are intended to be
-/// used during application startup to ensure consistent logging behavior across the application lifecycle.</remarks>
+/// <remarks>This static class offers both asynchronous and synchronous methods to set up Serilog logging for
+/// applications, supporting configuration from environment and configuration sources. It is intended to simplify logger
+/// initialization during application startup, including scenarios where asynchronous initialization is preferred but
+/// synchronous fallbacks are required. The methods in this class handle log file path resolution, log level
+/// configuration, and output to both console and file targets as appropriate.</remarks>
 public static class LoggerConfigurationExtension
 {
     private static readonly AnsiConsoleTheme _theme = AnsiConsoleTheme.Code;
@@ -25,67 +30,46 @@ public static class LoggerConfigurationExtension
     // "log-.log" -> creates "log-20251116.log"
     private const string _fileName = "log-.log";
 
+    // Cache once per process; resolves on first use.
+    private static readonly Lazy<Task<string>> _logPathTask = new(static () => LogPathUtil.Get(_fileName));
+
     /// <summary>
-    /// Builds a Serilog bootstrap logger configuration for the specified deployment environment and sets it as the
-    /// global logger instance.
+    /// Async-first bootstrap logger creation (preferred).
     /// </summary>
-    /// <remarks>This method initializes the global Serilog logger using a verbose log level and configures
-    /// both console and file sinks. It should be called early in application startup to ensure that logging is
-    /// available as soon as possible. The returned LoggerConfiguration can be further customized if needed.</remarks>
-    /// <param name="deployEnvironment">The deployment environment for which to configure the logger. This value may influence logger settings or output
-    /// destinations.</param>
-    /// <returns>A Serilog.LoggerConfiguration instance representing the configured bootstrap logger.</returns>
-    public static Serilog.LoggerConfiguration BuildBootstrapLoggerAndSetGlobally(DeployEnvironment deployEnvironment)
+    public static async ValueTask<Serilog.LoggerConfiguration> BuildBootstrapLoggerAndSetGlobally(DeployEnvironment deployEnvironment)
     {
         const LogEventLevel logLevel = LogEventLevel.Verbose;
 
         Serilog.LoggerConfiguration loggerConfig = new Serilog.LoggerConfiguration().MinimumLevel.Is(logLevel);
 
-        string logPath = LogPathUtil.Get(_fileName)
-                                    .ConfigureAwait(false)
-                                    .GetAwaiter()
-                                    .GetResult();
+        string logPath = await GetOrCreateLogPath()
+            .NoSync();
 
-        Console.WriteLine($"[BuildBootstrapLoggerAndSetGlobally] Using log path: {logPath}");
+        Console.WriteLine($"[BuildBootstrapLoggerAndSetGloballyAsync] Using log path: {logPath}");
 
-        EnsureDirectoryExists(logPath);
-
-        // 🟢 Console async, file direct (never dropped)
-        loggerConfig.WriteTo.Async(w =>
-                    {
-                        w.Console(theme: _theme);
-                    })
+        // Console async, file direct (never dropped)
+        loggerConfig.WriteTo.Async(a => a.Console(theme: _theme))
                     .WriteTo.File(logPath, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
 
         Log.Logger = loggerConfig.CreateBootstrapLogger();
-
         Log.Warning("[Bootstrap] Logger initialized at {Utc}", DateTimeOffset.UtcNow);
 
         return loggerConfig;
     }
 
-    private static void EnsureDirectoryExists(string filePath)
-    {
-        string? dir = Path.GetDirectoryName(filePath);
-
-        if (!string.IsNullOrWhiteSpace(dir))
-            Directory.CreateDirectory(dir);
-        else
-            Console.WriteLine($"[LoggerConfigurationExtension] WARN: Cannot determine directory for '{filePath}'");
-    }
+    /// <summary>
+    /// Sync wrapper for startup call sites that can't be async.
+    /// </summary>
+    public static Serilog.LoggerConfiguration BuildBootstrapLoggerAndSetGloballySync(DeployEnvironment deployEnvironment) =>
+        BuildBootstrapLoggerAndSetGlobally(deployEnvironment)
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
 
     /// <summary>
-    /// Configures the specified Serilog logger with settings from the provided configuration source, including log
-    /// level, output sinks, and file paths.
+    /// Async-first configuration (preferred).
     /// </summary>
-    /// <remarks>This method applies log level and output sink settings based on the provided configuration.
-    /// It supports console and file logging, and ensures the log file directory exists before writing logs. The method
-    /// is intended to be used as an extension method during logger setup in application startup code.</remarks>
-    /// <param name="loggerConfig">The Serilog logger configuration to be updated with additional settings.</param>
-    /// <param name="configuration">The configuration source containing logger settings such as log level, output options, and file paths. Cannot be
-    /// null.</param>
-    /// <returns>The updated Serilog logger configuration with applied settings from the configuration source.</returns>
-    public static Serilog.LoggerConfiguration ConfigureLogger(this Serilog.LoggerConfiguration loggerConfig, IConfiguration configuration)
+    public static async ValueTask<Serilog.LoggerConfiguration> ConfigureLogger(this Serilog.LoggerConfiguration loggerConfig, IConfiguration configuration)
     {
         LoggerUtil.Init();
 
@@ -96,27 +80,68 @@ public static class LoggerConfigurationExtension
         loggerConfig.MinimumLevel.ControlledBy(levelSwitch)
                     .Enrich.FromLogContext();
 
-        string logPath = LogPathUtil.Get(_fileName)
-                                    .ConfigureAwait(false)
-                                    .GetAwaiter()
-                                    .GetResult();
+        string logPath = await GetOrCreateLogPath()
+            .NoSync();
 
-        Console.WriteLine($"[ConfigureLogger] Using log path: {logPath}");
+        Console.WriteLine($"[ConfigureLoggerAsync] Using log path: {logPath}");
 
-        EnsureDirectoryExists(logPath);
+        bool consoleEnabled = configuration.GetValue("Log:Console", defaultValue: false);
 
-        if (configuration.GetValue<bool>("Log:Console"))
-        {
-            loggerConfig.WriteTo.Async(sinks =>
-            {
-                sinks.Console(theme: _theme, levelSwitch: levelSwitch);
-            });
-        }
+        if (consoleEnabled)
+            loggerConfig.WriteTo.Async(a => a.Console(theme: _theme, levelSwitch: levelSwitch));
 
         loggerConfig.WriteTo.File(logPath, levelSwitch: levelSwitch, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true);
 
-        Log.Warning("[ConfigureLogger] Logger initialized at {Utc}", DateTimeOffset.UtcNow);
+        Log.Warning("[ConfigureLoggerAsync] Logger initialized at {Utc}", DateTimeOffset.UtcNow);
 
         return loggerConfig;
+    }
+
+    /// <summary>
+    /// Sync wrapper for startup call sites that can't be async.
+    /// </summary>
+    public static Serilog.LoggerConfiguration ConfigureLoggerSync(this Serilog.LoggerConfiguration loggerConfig, IConfiguration configuration) => loggerConfig
+        .ConfigureLogger(configuration)
+        .AsTask()
+        .GetAwaiter()
+        .GetResult();
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ValueTask<string> GetOrCreateLogPath()
+    {
+        Task<string> task = _logPathTask.Value;
+
+        if (task.IsCompletedSuccessfully)
+        {
+            string path = task.Result;
+            EnsureDirectoryExists(path);
+            return new ValueTask<string>(path);
+        }
+
+        // Slow path: avoid local function; call a private method.
+        return new ValueTask<string>(AwaitAndEnsure(task));
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static async Task<string> AwaitAndEnsure(Task<string> task)
+    {
+        string path = await task.ConfigureAwait(false);
+        EnsureDirectoryExists(path);
+        return path;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void EnsureDirectoryExists(string filePath)
+    {
+        string? dir = Path.GetDirectoryName(filePath);
+
+        if (dir is { Length: > 0 })
+        {
+            Directory.CreateDirectory(dir);
+        }
+        else
+        {
+            Console.WriteLine($"[LoggerConfigurationExtension] WARN: Cannot determine directory for '{filePath}'");
+        }
     }
 }
