@@ -11,6 +11,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Soenneker.Extensions.ValueTask;
+using Soenneker.Extensions.Task;
 
 namespace Soenneker.Extensions.LoggerConfiguration;
 
@@ -61,9 +62,7 @@ public static class LoggerConfigurationExtension
     /// Sync wrapper for startup call sites that can't be async.
     /// </summary>
     public static Serilog.LoggerConfiguration BuildBootstrapLoggerAndSetGloballySync(DeployEnvironment deployEnvironment) =>
-        BuildBootstrapLoggerAndSetGlobally(deployEnvironment)
-            .GetAwaiter()
-            .GetResult();
+        BuildBootstrapLoggerAndSetGlobally(deployEnvironment).AwaitSync();
 
     /// <summary>
     /// Async-first configuration (preferred).
@@ -100,9 +99,7 @@ public static class LoggerConfigurationExtension
     /// Sync wrapper for startup call sites that can't be async.
     /// </summary>
     public static Serilog.LoggerConfiguration ConfigureLoggerSync(this Serilog.LoggerConfiguration loggerConfig, IConfiguration configuration) => loggerConfig
-        .ConfigureLogger(configuration)
-        .GetAwaiter()
-        .GetResult();
+        .ConfigureLogger(configuration).AwaitSync();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static ValueTask<string> GetOrCreateLogPath()
@@ -123,7 +120,7 @@ public static class LoggerConfigurationExtension
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static async Task<string> AwaitAndEnsure(Task<string> task)
     {
-        string path = await task.ConfigureAwait(false);
+        string path = await task.NoSync();
         EnsureDirectoryExists(path);
         return path;
     }
