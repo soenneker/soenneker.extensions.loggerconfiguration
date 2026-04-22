@@ -1,10 +1,9 @@
-using Xunit;
 
 namespace Soenneker.Extensions.LoggerConfiguration.Tests;
 
 public class LoggerConfigurationExtensionTests
 {
-    [Fact]
+    [Test]
     public void Default()
     { 
     
