@@ -4,10 +4,26 @@
 [![](https://img.shields.io/github/actions/workflow/status/soenneker/soenneker.extensions.loggerconfiguration/codeql.yml?label=CodeQL&style=for-the-badge)](https://github.com/soenneker/soenneker.extensions.loggerconfiguration/actions/workflows/codeql.yml)
 
 # ![](https://user-images.githubusercontent.com/4441470/224455560-91ed3ee7-f510-4041-a8d2-3fc093025112.png) Soenneker.Extensions.LoggerConfiguration
-### A set of useful Serilog LoggerConfiguration extension methods
+A set of useful Serilog LoggerConfiguration extension methods.
 
 ## Installation
 
-```
+```bash
 dotnet add package Soenneker.Extensions.LoggerConfiguration
 ```
+
+## Quick start
+
+```csharp
+using Soenneker.Extensions.LoggerConfiguration;
+
+// Given an existing Serilog.LoggerConfiguration named loggerConfig:
+var result = loggerConfig.ConfigureLogger(configuration);
+```
+
+## Common operations
+
+- `BuildBootstrapLoggerAndSetGlobally()` - Async-first bootstrap logger creation (preferred).
+- `BuildBootstrapLoggerAndSetGloballySync()` - Sync wrapper for startup call sites that can't be async.
+- `ConfigureLogger()` - Async-first configuration (preferred).
+- `ConfigureLoggerSync()` - Sync wrapper for startup call sites that can't be async.
