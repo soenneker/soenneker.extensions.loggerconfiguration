@@ -37,6 +37,7 @@ public static class LoggerConfigurationExtension
     /// <summary>
     /// Async-first bootstrap logger creation (preferred).
     /// </summary>
+    /// <returns>Async-first bootstrap logger creation (preferred).</returns>
     public static async ValueTask<Serilog.LoggerConfiguration> BuildBootstrapLoggerAndSetGlobally(DeployEnvironment deployEnvironment)
     {
         const LogEventLevel logLevel = LogEventLevel.Verbose;
@@ -61,12 +62,14 @@ public static class LoggerConfigurationExtension
     /// <summary>
     /// Sync wrapper for startup call sites that can't be async.
     /// </summary>
+    /// <returns>Sync wrapper for startup call sites that can't be async.</returns>
     public static Serilog.LoggerConfiguration BuildBootstrapLoggerAndSetGloballySync(DeployEnvironment deployEnvironment) =>
         BuildBootstrapLoggerAndSetGlobally(deployEnvironment).AwaitSync();
 
     /// <summary>
     /// Async-first configuration (preferred).
     /// </summary>
+    /// <returns>Async-first configuration (preferred).</returns>
     public static async ValueTask<Serilog.LoggerConfiguration> ConfigureLogger(this Serilog.LoggerConfiguration loggerConfig, IConfiguration configuration)
     {
         LoggerUtil.Init();
@@ -98,6 +101,7 @@ public static class LoggerConfigurationExtension
     /// <summary>
     /// Sync wrapper for startup call sites that can't be async.
     /// </summary>
+    /// <returns>Sync wrapper for startup call sites that can't be async.</returns>
     public static Serilog.LoggerConfiguration ConfigureLoggerSync(this Serilog.LoggerConfiguration loggerConfig, IConfiguration configuration) => loggerConfig
         .ConfigureLogger(configuration).AwaitSync();
 
