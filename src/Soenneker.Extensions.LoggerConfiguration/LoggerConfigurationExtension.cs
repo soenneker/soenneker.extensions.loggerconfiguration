@@ -37,6 +37,7 @@ public static class LoggerConfigurationExtension
     /// <summary>
     /// Async-first bootstrap logger creation (preferred).
     /// </summary>
+    /// <param name="deployEnvironment">Accepted for API compatibility; bootstrap configuration does not branch on this value.</param>
     /// <returns>Async-first bootstrap logger creation (preferred).</returns>
     public static async ValueTask<Serilog.LoggerConfiguration> BuildBootstrapLoggerAndSetGlobally(DeployEnvironment deployEnvironment)
     {
