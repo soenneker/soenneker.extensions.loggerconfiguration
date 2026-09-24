@@ -7,7 +7,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="AwesomeAssertions" Version="9.6.0" />
         <PackageReference Include="TUnit" Version="1.69.0" />
     </ItemGroup>
 
@@ -15,4 +14,3 @@
         <ProjectReference Include="..\..\src\Soenneker.Extensions.LoggerConfiguration\Soenneker.Extensions.LoggerConfiguration.csproj" />
     </ItemGroup>
 </Project>
-
