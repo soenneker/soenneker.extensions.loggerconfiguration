@@ -49,6 +49,6 @@
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="11.0.262" />
         <PackageReference Include="Soenneker.Extensions.Task" Version="11.0.141" />
         <PackageReference Include="Soenneker.Utils.Logger" Version="11.0.591" />
-        <PackageReference Include="Soenneker.Utils.LogPath" Version="11.0.183" />
+        <PackageReference Include="Soenneker.Utils.LogPath" Version="11.0.184" />
     </ItemGroup>
 </Project>
